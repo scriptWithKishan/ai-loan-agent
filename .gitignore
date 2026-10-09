@@ -1,0 +1,9 @@
+node_modules
+.env
+.env.local
+.output
+.nitro
+dist
+.tanstack
+*.log
+.DS_Store
