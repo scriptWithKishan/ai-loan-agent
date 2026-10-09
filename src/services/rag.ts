@@ -42,10 +42,13 @@ export async function embedText(text: string): Promise<number[] | null> {
 
   try {
     const response = await ai.models.embedContent({
-      model: 'text-embedding-004',
+      model: 'gemini-embedding-001',
       contents: text,
+      config: {
+        outputDimensionality: 768,
+      },
     })
-    return response.embedding?.values || null
+    return (response as any).embeddings?.[0]?.values || (response as any).embedding?.values || null
   } catch (err) {
     console.warn('Embedding generation warning:', err instanceof Error ? err.message : err)
     return null

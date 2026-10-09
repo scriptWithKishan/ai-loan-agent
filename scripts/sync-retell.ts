@@ -16,8 +16,16 @@ async function main() {
     process.exit(1)
   }
 
-  const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
-  console.log(`Using Base Webhook URL: ${appUrl}`)
+  let appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')
+  let webhookBaseUrl = appUrl
+  if (webhookBaseUrl.includes('localhost') || webhookBaseUrl.includes('127.0.0.1')) {
+    webhookBaseUrl = 'https://lap-ai-voicechat.vercel.app'
+    console.log(`⚠️ Notice: Retell AI requires a public HTTPS URL for webhooks.`)
+    console.log(`   Using provisional URL: ${webhookBaseUrl}`)
+    console.log(`   Once deployed on Vercel, update APP_URL in .env and re-run pnpm run retell:sync.`)
+  } else {
+    console.log(`Using Base Webhook URL: ${webhookBaseUrl}`)
+  }
 
   const client = new Retell({ apiKey })
 
@@ -34,7 +42,7 @@ async function main() {
     type: 'custom',
     name: 'check_eligibility',
     description: 'Evaluates customer preliminary loan eligibility deterministically. MUST be called whenever customer shares property type, ownership, documents availability, loan amount, income mode, market value, or tenure.',
-    url: `${appUrl}/api/tools/check-eligibility`,
+    url: `${webhookBaseUrl}/api/tools/check-eligibility`,
     speak_during_execution: true,
     execution_message_description: 'A brief 1-second conversational filler while verifying details, such as "Let me check that criteria..."',
     parameters: {
@@ -85,7 +93,7 @@ async function main() {
     type: 'custom',
     name: 'query_rag_knowledge',
     description: 'Queries official LAP guidelines and product knowledge when the customer asks specific questions about interest rates, acceptable documents, process, or objections.',
-    url: `${appUrl}/api/tools/query-rag`,
+    url: `${webhookBaseUrl}/api/tools/query-rag`,
     speak_during_execution: false,
     parameters: {
       type: 'object',
@@ -126,7 +134,7 @@ async function main() {
       llm_id: llm.llm_id,
     },
     voice_id: '11labs-Adrian', // High quality conversational voice
-    webhook_url: `${appUrl}/api/webhooks/retell`,
+    webhook_url: `${webhookBaseUrl}/api/webhooks/retell`,
   })
 
   console.log(`✅ Retell Agent successfully created!`)
