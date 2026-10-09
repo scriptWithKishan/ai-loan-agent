@@ -9,9 +9,9 @@ export default defineConfig({
     tsconfigPaths: true,
   },
   plugins: [
+    tailwindcss(),
     tanstackStart(),
     nitro(),
     viteReact(),
-    tailwindcss(),
   ],
 })
