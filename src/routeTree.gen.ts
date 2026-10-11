@@ -12,6 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as CallCallIdRouteImport } from './routes/call/$callId'
+import { Route as ApiCallsIndexRouteImport } from './routes/api/calls/index'
+import { Route as ApiCallsCallIdRouteImport } from './routes/api/calls/$callId'
+import { Route as ApiCallsEndRouteImport } from './routes/api/calls/end'
+import { Route as ApiCallsStartRouteImport } from './routes/api/calls/start'
 import { Route as ApiToolsCheckEligibilityRouteImport } from './routes/api/tools/check-eligibility'
 import { Route as ApiToolsQueryRagRouteImport } from './routes/api/tools/query-rag'
 import { Route as ApiWebhooksRetellRouteImport } from './routes/api/webhooks/retell'
@@ -29,6 +33,26 @@ const HistoryRoute = HistoryRouteImport.update({
 const CallCallIdRoute = CallCallIdRouteImport.update({
   id: '/call/$callId',
   path: '/call/$callId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCallsIndexRoute = ApiCallsIndexRouteImport.update({
+  id: '/api/calls/',
+  path: '/api/calls/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCallsCallIdRoute = ApiCallsCallIdRouteImport.update({
+  id: '/api/calls/$callId',
+  path: '/api/calls/$callId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCallsEndRoute = ApiCallsEndRouteImport.update({
+  id: '/api/calls/end',
+  path: '/api/calls/end',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCallsStartRoute = ApiCallsStartRouteImport.update({
+  id: '/api/calls/start',
+  path: '/api/calls/start',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiToolsCheckEligibilityRoute =
@@ -52,26 +76,38 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
   '/call/$callId': typeof CallCallIdRoute
+  '/api/calls/$callId': typeof ApiCallsCallIdRoute
+  '/api/calls/end': typeof ApiCallsEndRoute
+  '/api/calls/start': typeof ApiCallsStartRoute
   '/api/tools/check-eligibility': typeof ApiToolsCheckEligibilityRoute
   '/api/tools/query-rag': typeof ApiToolsQueryRagRoute
   '/api/webhooks/retell': typeof ApiWebhooksRetellRoute
+  '/api/calls/': typeof ApiCallsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
   '/call/$callId': typeof CallCallIdRoute
+  '/api/calls/$callId': typeof ApiCallsCallIdRoute
+  '/api/calls/end': typeof ApiCallsEndRoute
+  '/api/calls/start': typeof ApiCallsStartRoute
   '/api/tools/check-eligibility': typeof ApiToolsCheckEligibilityRoute
   '/api/tools/query-rag': typeof ApiToolsQueryRagRoute
   '/api/webhooks/retell': typeof ApiWebhooksRetellRoute
+  '/api/calls': typeof ApiCallsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/history': typeof HistoryRoute
   '/call/$callId': typeof CallCallIdRoute
+  '/api/calls/$callId': typeof ApiCallsCallIdRoute
+  '/api/calls/end': typeof ApiCallsEndRoute
+  '/api/calls/start': typeof ApiCallsStartRoute
   '/api/tools/check-eligibility': typeof ApiToolsCheckEligibilityRoute
   '/api/tools/query-rag': typeof ApiToolsQueryRagRoute
   '/api/webhooks/retell': typeof ApiWebhooksRetellRoute
+  '/api/calls/': typeof ApiCallsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -79,34 +115,50 @@ export interface FileRouteTypes {
     | '/'
     | '/history'
     | '/call/$callId'
+    | '/api/calls/$callId'
+    | '/api/calls/end'
+    | '/api/calls/start'
     | '/api/tools/check-eligibility'
     | '/api/tools/query-rag'
     | '/api/webhooks/retell'
+    | '/api/calls/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/history'
     | '/call/$callId'
+    | '/api/calls/$callId'
+    | '/api/calls/end'
+    | '/api/calls/start'
     | '/api/tools/check-eligibility'
     | '/api/tools/query-rag'
     | '/api/webhooks/retell'
+    | '/api/calls'
   id:
     | '__root__'
     | '/'
     | '/history'
     | '/call/$callId'
+    | '/api/calls/$callId'
+    | '/api/calls/end'
+    | '/api/calls/start'
     | '/api/tools/check-eligibility'
     | '/api/tools/query-rag'
     | '/api/webhooks/retell'
+    | '/api/calls/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HistoryRoute: typeof HistoryRoute
   CallCallIdRoute: typeof CallCallIdRoute
+  ApiCallsCallIdRoute: typeof ApiCallsCallIdRoute
+  ApiCallsEndRoute: typeof ApiCallsEndRoute
+  ApiCallsStartRoute: typeof ApiCallsStartRoute
   ApiToolsCheckEligibilityRoute: typeof ApiToolsCheckEligibilityRoute
   ApiToolsQueryRagRoute: typeof ApiToolsQueryRagRoute
   ApiWebhooksRetellRoute: typeof ApiWebhooksRetellRoute
+  ApiCallsIndexRoute: typeof ApiCallsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -130,6 +182,34 @@ declare module '@tanstack/react-router' {
       path: '/call/$callId'
       fullPath: '/call/$callId'
       preLoaderRoute: typeof CallCallIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/calls/': {
+      id: '/api/calls/'
+      path: '/api/calls'
+      fullPath: '/api/calls/'
+      preLoaderRoute: typeof ApiCallsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/calls/$callId': {
+      id: '/api/calls/$callId'
+      path: '/api/calls/$callId'
+      fullPath: '/api/calls/$callId'
+      preLoaderRoute: typeof ApiCallsCallIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/calls/end': {
+      id: '/api/calls/end'
+      path: '/api/calls/end'
+      fullPath: '/api/calls/end'
+      preLoaderRoute: typeof ApiCallsEndRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/calls/start': {
+      id: '/api/calls/start'
+      path: '/api/calls/start'
+      fullPath: '/api/calls/start'
+      preLoaderRoute: typeof ApiCallsStartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/tools/check-eligibility': {
@@ -160,9 +240,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HistoryRoute: HistoryRoute,
   CallCallIdRoute: CallCallIdRoute,
+  ApiCallsCallIdRoute: ApiCallsCallIdRoute,
+  ApiCallsEndRoute: ApiCallsEndRoute,
+  ApiCallsStartRoute: ApiCallsStartRoute,
   ApiToolsCheckEligibilityRoute: ApiToolsCheckEligibilityRoute,
   ApiToolsQueryRagRoute: ApiToolsQueryRagRoute,
   ApiWebhooksRetellRoute: ApiWebhooksRetellRoute,
+  ApiCallsIndexRoute: ApiCallsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

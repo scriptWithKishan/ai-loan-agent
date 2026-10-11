@@ -30,17 +30,39 @@ export const Route = createFileRoute('/api/webhooks/retell')({
               })
               .where(eq(calls.retellCallId, retellCallId))
           } else if (eventType === 'call_ended' || eventType === 'call_analyzed') {
-            const transcript = callData?.transcript_object || []
+            const rawTranscript = callData?.transcript_object || []
             const durationSeconds = callData?.duration_ms ? Math.round(callData.duration_ms / 1000) : null
             const recordingUrl = callData?.recording_url
+
+            const transcriptUtterances = Array.isArray(rawTranscript)
+              ? rawTranscript
+                  .filter((item: any) => item && (item.role === 'agent' || item.role === 'user') && item.content)
+                  .map((item: any) => ({
+                    role: item.role === 'agent' ? 'agent' : 'user',
+                    content: item.content,
+                  }))
+              : []
+
+            const { extractCallDetailsFromTranscript } = await import('../../../services/transcript-extractor')
+            const extracted = await extractCallDetailsFromTranscript(transcriptUtterances)
 
             await db
               .update(calls)
               .set({
                 callStatus: 'ended',
+                eligibilityStatus: extracted.eligibilityStatus,
+                disqualificationReason: extracted.disqualificationReason,
+                propertyType: extracted.propertyType || undefined,
+                ownership: extracted.ownership || undefined,
+                originalDocuments: extracted.originalDocuments !== null ? extracted.originalDocuments : undefined,
+                loanAmountInr: extracted.loanAmountInr ?? undefined,
+                occupation: extracted.occupation || undefined,
+                incomeMode: extracted.incomeMode || undefined,
+                marketValueInr: extracted.marketValueInr ?? undefined,
+                tenureYears: extracted.tenureYears ?? undefined,
                 durationSeconds: durationSeconds ?? undefined,
                 recordingUrl: recordingUrl ?? undefined,
-                transcript: Array.isArray(transcript) ? transcript : [],
+                transcript: transcriptUtterances.length > 0 ? transcriptUtterances : undefined,
                 updatedAt: new Date(),
               })
               .where(eq(calls.retellCallId, retellCallId))

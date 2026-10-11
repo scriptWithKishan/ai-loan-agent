@@ -51,27 +51,46 @@ export const Route = createFileRoute('/api/tools/check-eligibility')({
             nextInstruction = `IN PROGRESS: Criteria verified so far are valid. Please proceed to ask the next missing checklist items: ${evaluation.missingFields.join(', ')}.`
           }
 
-          if (callId && process.env.DATABASE_URL) {
-            try {
-              await db
-                .update(calls)
-                .set({
-                  eligibilityStatus: evaluation.status,
-                  disqualificationReason: evaluation.failedReason,
-                  disqualificationStep: evaluation.failedStep,
-                  propertyType: propertyType || undefined,
-                  ownership: ownership || undefined,
-                  originalDocuments: originalDocuments ?? undefined,
-                  loanAmountInr: loanAmountInr ?? undefined,
-                  occupation: occupation || undefined,
-                  incomeMode: incomeMode || undefined,
-                  marketValueInr: marketValueInr ?? undefined,
-                  tenureYears: tenureYears ?? undefined,
-                  updatedAt: new Date(),
-                })
-                .where(eq(calls.id, callId))
-            } catch (dbErr) {
-              console.warn('DB update during eligibility check error:', dbErr)
+          if (callId) {
+            const { inMemoryCalls } = await import('../calls/start')
+            const cached = inMemoryCalls?.get(callId)
+            if (cached) {
+              cached.eligibilityStatus = evaluation.status
+              cached.disqualificationReason = evaluation.failedReason
+              cached.disqualificationStep = evaluation.failedStep
+              if (propertyType) cached.propertyType = propertyType
+              if (ownership) cached.ownership = ownership
+              if (originalDocuments !== null) cached.originalDocuments = originalDocuments
+              if (loanAmountInr !== null) cached.loanAmountInr = loanAmountInr
+              if (occupation) cached.occupation = occupation
+              if (incomeMode) cached.incomeMode = incomeMode
+              if (marketValueInr !== null) cached.marketValueInr = marketValueInr
+              if (tenureYears !== null) cached.tenureYears = tenureYears
+            }
+
+            if (process.env.DATABASE_URL) {
+              try {
+                const { or } = await import('drizzle-orm')
+                await db
+                  .update(calls)
+                  .set({
+                    eligibilityStatus: evaluation.status,
+                    disqualificationReason: evaluation.failedReason,
+                    disqualificationStep: evaluation.failedStep,
+                    propertyType: propertyType || undefined,
+                    ownership: ownership || undefined,
+                    originalDocuments: originalDocuments ?? undefined,
+                    loanAmountInr: loanAmountInr ?? undefined,
+                    occupation: occupation || undefined,
+                    incomeMode: incomeMode || undefined,
+                    marketValueInr: marketValueInr ?? undefined,
+                    tenureYears: tenureYears ?? undefined,
+                    updatedAt: new Date(),
+                  })
+                  .where(or(eq(calls.id, callId), eq(calls.retellCallId, callId)))
+              } catch (dbErr) {
+                console.warn('DB update during eligibility check error:', dbErr)
+              }
             }
           }
 

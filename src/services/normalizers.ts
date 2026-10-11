@@ -118,14 +118,23 @@ export function normalizeAmountInr(raw: string | number | null | undefined): num
 }
 
 function resolveNumberWords(token: string): number | null {
-  const clean = token.toLowerCase().trim().replace(/[^a-z0-9.]/g, '')
+  const clean = token.toLowerCase().trim().replace(/-/g, ' ').replace(/[^a-z0-9.\s]/g, '')
   const parsed = parseFloat(clean)
   if (!isNaN(parsed)) return parsed
 
-  if (HINDI_NUMBER_WORDS[clean] !== undefined) return HINDI_NUMBER_WORDS[clean]
-  if (ENGLISH_NUMBER_WORDS[clean] !== undefined) return ENGLISH_NUMBER_WORDS[clean]
+  const parts = clean.split(/\s+/).filter(Boolean)
+  if (parts.length === 1) {
+    const single = parts[0]
+    if (HINDI_NUMBER_WORDS[single] !== undefined) return HINDI_NUMBER_WORDS[single]
+    if (ENGLISH_NUMBER_WORDS[single] !== undefined) return ENGLISH_NUMBER_WORDS[single]
+  } else if (parts.length === 2) {
+    const tens = ENGLISH_NUMBER_WORDS[parts[0]] ?? HINDI_NUMBER_WORDS[parts[0]]
+    const ones = ENGLISH_NUMBER_WORDS[parts[1]] ?? HINDI_NUMBER_WORDS[parts[1]]
+    if (tens !== undefined && ones !== undefined) {
+      return tens + ones
+    }
+  }
 
-  // Combined e.g. "seventy five"
   return null
 }
 

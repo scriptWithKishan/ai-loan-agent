@@ -17,7 +17,7 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
   onEndCall,
 }) => {
   return (
-    <div className="flex items-center justify-between p-4 bg-slate-900/80 border border-slate-800 rounded-2xl shadow-xl backdrop-blur-md">
+    <div className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5 neu-raised rounded-2xl border border-white/80 w-full">
       {/* Status indicator */}
       <div className="flex items-center gap-3">
         <div className="relative flex items-center justify-center">
@@ -31,17 +31,17 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
           )}
         </div>
         <div>
-          <div className="text-sm font-semibold text-slate-200">
-            {isCalling ? 'Live Web Call Connected' : 'Call Initializing...'}
+          <div className="text-sm font-bold text-slate-800">
+            {isCalling ? 'Live Audio Connected' : 'Connecting Audio Line...'}
           </div>
-          <div className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+          <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
             {isAgentSpeaking ? (
-              <span className="text-sky-400 font-medium flex items-center gap-1">
-                <Volume2 className="w-3.5 h-3.5 animate-pulse" /> Advisor Speaking...
+              <span className="text-blue-700 font-semibold flex items-center gap-1">
+                <Volume2 className="w-3.5 h-3.5 animate-pulse text-blue-600" /> Advisor Vikram is speaking
               </span>
             ) : (
-              <span className="text-emerald-400 flex items-center gap-1">
-                <Radio className="w-3.5 h-3.5" /> Listening to you
+              <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                <Radio className="w-3.5 h-3.5 text-emerald-600" /> Listening to your microphone
               </span>
             )}
           </div>
@@ -49,14 +49,14 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
       </div>
 
       {/* Buttons */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 ml-auto">
         <button
           onClick={onToggleMute}
           title={isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
-          className={`p-3 rounded-full transition-all duration-200 shadow-md ${
+          className={`p-3.5 rounded-2xl transition-all duration-200 cursor-pointer ${
             isMuted
-              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 hover:bg-rose-500/30'
-              : 'bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700'
+              ? 'neu-inset text-rose-600 border border-rose-300'
+              : 'neu-button text-slate-700 hover:text-blue-600'
           }`}
         >
           {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
@@ -64,10 +64,10 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
 
         <button
           onClick={onEndCall}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-medium shadow-lg shadow-rose-900/40 transition-all duration-200 active:scale-95"
+          className="neu-button-danger flex items-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-sm cursor-pointer shadow-md"
         >
           <PhoneOff className="w-4 h-4" />
-          <span>End Call</span>
+          <span>End Consultation</span>
         </button>
       </div>
     </div>

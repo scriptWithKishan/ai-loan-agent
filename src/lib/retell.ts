@@ -22,7 +22,15 @@ export interface CreateWebCallParams {
   metadata?: Record<string, any>
 }
 
-export async function createRetellWebCall(params: CreateWebCallParams) {
+export interface WebCallDetails {
+  callId: string
+  accessToken: string
+  transport: 'gateway' | 'livekit'
+  iceServers?: any[]
+  expiresAt?: number
+}
+
+export async function createRetellWebCall(params: CreateWebCallParams): Promise<WebCallDetails> {
   const client = getRetellClient()
   const agentId = params.agentId || process.env.RETELL_AGENT_ID
 
@@ -39,5 +47,36 @@ export async function createRetellWebCall(params: CreateWebCallParams) {
   return {
     callId: response.call_id,
     accessToken: response.access_token,
+    transport: (response as any).transport || 'gateway',
+    iceServers: (response as any).ice_servers,
+    expiresAt: (response as any).expires_at,
   }
 }
+
+export async function stopRetellCall(retellCallId: string): Promise<void> {
+  const apiKey = process.env.RETELL_API_KEY
+  if (!apiKey || apiKey.startsWith('key_xxx') || !retellCallId || retellCallId.startsWith('mock_')) {
+    return
+  }
+  try {
+    const client = getRetellClient()
+    await client.call.stop(retellCallId)
+  } catch (err: any) {
+    console.warn(`[Retell] Could not stop call ${retellCallId}:`, err?.message || err)
+  }
+}
+
+export async function getRetellCall(retellCallId: string): Promise<any | null> {
+  const apiKey = process.env.RETELL_API_KEY
+  if (!apiKey || apiKey.startsWith('key_xxx') || !retellCallId || retellCallId.startsWith('mock_')) {
+    return null
+  }
+  try {
+    const client = getRetellClient()
+    return await client.call.retrieve(retellCallId)
+  } catch (err: any) {
+    console.warn(`[Retell] Could not retrieve call ${retellCallId}:`, err?.message || err)
+    return null
+  }
+}
+

@@ -32,8 +32,8 @@ async function main() {
   const prompt = buildSystemPrompt({
     companyName: process.env.COMPANY_NAME || 'Sunrise Capital',
     customerName: '{{customer_name}}',
-    agentName: 'Ananya',
-    agentGender: 'female',
+    agentName: 'Vikram',
+    agentGender: 'male',
     languageToSpeak: 'English',
   })
 
@@ -110,34 +110,71 @@ async function main() {
   const endCallTool: Retell.LlmCreateParams.EndCallTool = {
     type: 'end_call',
     name: 'end_call',
-    description: 'Ends the call politely when call is concluded, customer requests callback, wrong person answered, or customer asks to not be called.',
+    description: 'Ends the call immediately as soon as you have finished saying goodbye, concluded the qualification, or customer requests to end.',
   }
 
   console.log('Creating/Updating Retell LLM Response Engine...')
-  const llm = await client.llm.create({
-    model: 'gemini-3.0-flash',
-    general_prompt: prompt,
-    general_tools: [eligibilityTool, ragTool, endCallTool],
-    begin_message: 'Hi, am I speaking with {{customer_name}}? This is Ananya from Sunrise Capital.',
-    default_dynamic_variables: {
-      customer_name: 'there',
-    },
-  })
+  const existingAgentId = process.env.RETELL_AGENT_ID
 
-  console.log(`✓ Retell LLM created with ID: ${llm.llm_id}`)
+  let llmId: string | null = null
+  if (existingAgentId) {
+    try {
+      const existingAgent = await client.agent.retrieve(existingAgentId)
+      if (existingAgent?.response_engine?.llm_id) {
+        llmId = existingAgent.response_engine.llm_id
+      }
+    } catch (e) {}
+  }
 
-  console.log('Creating Retell Voice Agent...')
-  const agent = await client.agent.create({
-    agent_name: 'LAP AI Voice Advisor (Production)',
-    response_engine: {
-      type: 'retell-llm',
-      llm_id: llm.llm_id,
-    },
-    voice_id: '11labs-Adrian', // High quality conversational voice
-    webhook_url: `${webhookBaseUrl}/api/webhooks/retell`,
-  })
+  let llm: any
+  if (llmId) {
+    console.log(`Updating existing LLM: ${llmId}`)
+    llm = await client.llm.update(llmId, {
+      model: 'gemini-3.0-flash',
+      general_prompt: prompt,
+      general_tools: [endCallTool],
+      begin_message: 'Hi, am I speaking with {{customer_name}}? This is Vikram from Sunrise Capital.',
+    })
+  } else {
+    llm = await client.llm.create({
+      model: 'gemini-3.0-flash',
+      general_prompt: prompt,
+      general_tools: [endCallTool],
+      begin_message: 'Hi, am I speaking with {{customer_name}}? This is Vikram from Sunrise Capital.',
+      default_dynamic_variables: {
+        customer_name: 'there',
+      },
+    })
+  }
 
-  console.log(`✅ Retell Agent successfully created!`)
+  console.log(`✓ Retell LLM ready with ID: ${llm.llm_id}`)
+
+  let agent: any
+  if (existingAgentId) {
+    console.log(`Updating existing agent: ${existingAgentId}`)
+    agent = await client.agent.update(existingAgentId, {
+      agent_name: 'LAP AI Voice Advisor (Production)',
+      response_engine: {
+        type: 'retell-llm',
+        llm_id: llm.llm_id,
+      },
+      voice_id: '11labs-Adrian',
+      webhook_url: `${webhookBaseUrl}/api/webhooks/retell`,
+    })
+  } else {
+    console.log('Creating Retell Voice Agent...')
+    agent = await client.agent.create({
+      agent_name: 'LAP AI Voice Advisor (Production)',
+      response_engine: {
+        type: 'retell-llm',
+        llm_id: llm.llm_id,
+      },
+      voice_id: '11labs-Adrian',
+      webhook_url: `${webhookBaseUrl}/api/webhooks/retell`,
+    })
+  }
+
+  console.log(`✅ Retell Agent successfully updated!`)
   console.log(`===============================================`)
   console.log(`Agent ID: ${agent.agent_id}`)
   console.log(`LLM ID:   ${llm.llm_id}`)

@@ -1,115 +1,96 @@
-import { createServerFn } from '@tanstack/react-start'
-import { db } from '../db'
-import { calls, Call } from '../db/schema'
-import { createRetellWebCall } from '../lib/retell'
-import { eq, desc } from 'drizzle-orm'
-
 export interface StartCallPayload {
   customerName: string
   phoneNumber?: string
-  agentName: string
-  agentGender: 'male' | 'female'
-  language: 'English' | 'Hindi'
+  agentName?: string
+  agentGender?: 'male' | 'female'
+  language?: 'English' | 'Hindi'
 }
 
-// In-memory fallback cache for development or when DATABASE_URL is not yet connected
-const inMemoryCalls = new Map<string, any>()
+export interface StartCallResult {
+  callId: string
+  retellCallId: string
+  accessToken: string
+  transport: 'gateway' | 'livekit'
+  iceServers?: any[]
+  session: any
+}
 
-export const startCallServerFn = createServerFn({ method: 'POST' })
-  .validator((data: StartCallPayload) => data)
-  .handler(async ({ data }) => {
-    const callId = `call_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
-
-    let retellResult = { callId: `mock_retell_${Date.now()}`, accessToken: 'mock_token' }
-
-    if (process.env.RETELL_API_KEY && !process.env.RETELL_API_KEY.startsWith('key_xxx')) {
-      try {
-        retellResult = await createRetellWebCall({
-          dynamicVariables: {
-            customer_name: data.customerName,
-            agent_name: data.agentName,
-            agent_gender: data.agentGender,
-            language: data.language,
-          },
-          metadata: {
-            app_call_id: callId,
-          },
-        })
-      } catch (err) {
-        console.warn('Retell createWebCall failed, falling back to mock for testing:', err)
-      }
-    } else {
-      console.warn('RETELL_API_KEY not set. Using test mock token.')
-    }
-
-    const newCallData = {
-      id: callId,
-      retellCallId: retellResult.callId,
-      customerName: data.customerName,
-      phoneNumber: data.phoneNumber || null,
-      agentName: data.agentName,
-      agentGender: data.agentGender,
-      language: data.language,
-      callStatus: 'ongoing',
-      eligibilityStatus: 'in_progress',
-      transcript: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    inMemoryCalls.set(callId, newCallData)
-
-    if (process.env.DATABASE_URL) {
-      try {
-        await db.insert(calls).values(newCallData)
-      } catch (dbErr) {
-        console.warn('Failed to insert call to DB, saved to in-memory fallback:', dbErr)
-      }
-    }
-
-    return {
-      callId,
-      accessToken: retellResult.accessToken,
-      retellCallId: retellResult.callId,
-      session: newCallData,
-    }
+// Client API helpers that use direct REST HTTP calls to prevent TanStack Start serverFn split bugs
+export async function startCallApi(data: StartCallPayload): Promise<StartCallResult> {
+  const res = await fetch('/api/calls/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
   })
 
-export const getCallServerFn = createServerFn({ method: 'GET' })
-  .validator((callId: string) => callId)
-  .handler(async ({ data: callId }) => {
-    if (process.env.DATABASE_URL) {
-      try {
-        const rows = await db.select().from(calls).where(eq(calls.id, callId)).limit(1)
-        if (rows.length > 0) return rows[0]
-      } catch (err) {
-        // Fall back to in-memory
-      }
-    }
-
-    return inMemoryCalls.get(callId) || null
-  })
-
-export const listCallsServerFn = createServerFn({ method: 'GET' }).handler(async () => {
-  if (process.env.DATABASE_URL) {
-    try {
-      const records = await db.select().from(calls).orderBy(desc(calls.createdAt)).limit(50)
-      return records
-    } catch (err) {
-      // Fall back to in-memory
-    }
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => ({}))
+    throw new Error(errorJson.error || `Failed to start call (Status: ${res.status})`)
   }
 
-  return Array.from(inMemoryCalls.values()).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  )
-})
+  return await res.json()
+}
 
-export const verifyAdminPasscodeFn = createServerFn({ method: 'POST' })
-  .validator((passcode: string) => passcode)
-  .handler(async ({ data: passcode }) => {
-    const adminPasscode = process.env.ADMIN_PASSCODE || 'admin123456'
-    return {
-      valid: passcode === adminPasscode,
-    }
+export async function getCallApi(callId: string): Promise<any | null> {
+  const res = await fetch(`/api/calls/${callId}`)
+  if (!res.ok) {
+    if (res.status === 404) return null
+    throw new Error(`Failed to retrieve call ${callId} (Status: ${res.status})`)
+  }
+  return await res.json()
+}
+
+export async function listCallsApi(): Promise<any[]> {
+  const res = await fetch('/api/calls')
+  if (!res.ok) {
+    throw new Error(`Failed to list calls (Status: ${res.status})`)
+  }
+  return await res.json()
+}
+
+export async function endCallApi(
+  callId: string,
+  extra?: { transcript?: any[]; durationSeconds?: number }
+): Promise<any> {
+  const res = await fetch('/api/calls/end', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ callId, ...extra }),
   })
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => ({}))
+    throw new Error(errorJson.error || `Failed to end call ${callId} (Status: ${res.status})`)
+  }
+  return await res.json()
+}
+
+export async function deleteCallApi(callId: string): Promise<boolean> {
+  const res = await fetch(`/api/calls/${callId}`, {
+    method: 'DELETE',
+  })
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => ({}))
+    throw new Error(errorJson.error || `Failed to delete call ${callId} (Status: ${res.status})`)
+  }
+  return true
+}
+
+export async function clearAllCallsApi(): Promise<boolean> {
+  const res = await fetch('/api/calls', {
+    method: 'DELETE',
+  })
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => ({}))
+    throw new Error(errorJson.error || `Failed to clear calls (Status: ${res.status})`)
+  }
+  return true
+}
+
+// Aliases for compatibility
+export const startCallServerFn = async ({ data }: { data: StartCallPayload }) => startCallApi(data)
+export const getCallServerFn = async ({ data }: { data: string }) => getCallApi(data)
+export const listCallsServerFn = async () => listCallsApi()
+
