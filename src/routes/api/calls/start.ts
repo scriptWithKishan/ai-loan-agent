@@ -23,7 +23,7 @@ export const Route = createFileRoute('/api/calls/start')({
           let retellResult: WebCallDetails = {
             callId: `mock_retell_${Date.now()}`,
             accessToken: 'mock_token',
-            transport: 'gateway',
+            transport: undefined,
             iceServers: [],
           }
 

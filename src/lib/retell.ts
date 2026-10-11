@@ -25,7 +25,7 @@ export interface CreateWebCallParams {
 export interface WebCallDetails {
   callId: string
   accessToken: string
-  transport: 'gateway' | 'livekit'
+  transport?: 'gateway' | 'livekit'
   iceServers?: any[]
   expiresAt?: number
 }
@@ -47,7 +47,7 @@ export async function createRetellWebCall(params: CreateWebCallParams): Promise<
   return {
     callId: response.call_id,
     accessToken: response.access_token,
-    transport: (response as any).transport || 'gateway',
+    transport: (response as any).transport || undefined,
     iceServers: (response as any).ice_servers,
     expiresAt: (response as any).expires_at,
   }
@@ -62,6 +62,9 @@ export async function stopRetellCall(retellCallId: string): Promise<void> {
     const client = getRetellClient()
     await client.call.stop(retellCallId)
   } catch (err: any) {
+    if (err?.status === 400 || err?.statusCode === 400 || err?.message?.includes('Can only stop an ongoing call')) {
+      return
+    }
     console.warn(`[Retell] Could not stop call ${retellCallId}:`, err?.message || err)
   }
 }

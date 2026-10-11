@@ -132,7 +132,7 @@ export const Route = createFileRoute('/api/calls/end')({
             JSON.stringify({
               success: true,
               callStatus: 'ended',
-              eligibilityStatus: currentEligibility,
+              eligibilityStatus: extracted.eligibilityStatus,
             }),
             {
               headers: { 'Content-Type': 'application/json' },

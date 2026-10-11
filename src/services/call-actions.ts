@@ -10,7 +10,7 @@ export interface StartCallResult {
   callId: string
   retellCallId: string
   accessToken: string
-  transport: 'gateway' | 'livekit'
+  transport?: 'gateway' | 'livekit'
   iceServers?: any[]
   session: any
 }

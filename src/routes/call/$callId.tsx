@@ -59,11 +59,18 @@ function LiveCallPage() {
   const recognitionRef = useRef<any>(null)
   const disconnectTimerRef = useRef<any>(null)
   const hasEndedRef = useRef(false)
+  const callDurationRef = useRef(0)
+  const isUnmountingRef = useRef(false)
+  const handleEndCallRef = useRef<() => void>(() => {})
 
   // Keep ref synchronized with state
   useEffect(() => {
     messagesRef.current = messages
   }, [messages])
+
+  useEffect(() => {
+    callDurationRef.current = callDuration
+  }, [callDuration])
 
   // Call duration counter
   useEffect(() => {
@@ -119,7 +126,7 @@ function LiveCallPage() {
     try {
       await endCallApi(callId, {
         transcript: messagesRef.current,
-        durationSeconds: callDuration,
+        durationSeconds: callDurationRef.current,
       })
     } catch (e) {
       console.warn('Server endCallApi error:', e)
@@ -131,9 +138,13 @@ function LiveCallPage() {
 
     // Short transition before navigating to history so user sees completion
     setTimeout(() => {
-      navigate({ to: '/history' })
+      if (!isUnmountingRef.current) {
+        navigate({ to: '/history' })
+      }
     }, 1200)
-  }, [callId, callDuration, navigate])
+  }, [callId, navigate])
+
+  handleEndCallRef.current = handleEndCall
 
   // Initialize browser speech recognition for real-time user speech feedback
   const startSpeechRecognition = useCallback(() => {
@@ -185,16 +196,19 @@ function LiveCallPage() {
         }
       }
 
-      recognition.onerror = () => {
-        // Soft error, silent fallback
+      recognition.onerror = (event: any) => {
+        if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed' || event?.error === 'audio-capture') {
+          recognitionRef.current = null
+        }
       }
 
       recognition.onend = () => {
-        // Restart if still calling and not muted
-        if (retellClientRef.current && !hasEndedRef.current) {
+        if (recognitionRef.current && retellClientRef.current && !hasEndedRef.current && !isUnmountingRef.current) {
           try {
             recognition.start()
-          } catch (e) {}
+          } catch (e) {
+            recognitionRef.current = null
+          }
         }
       }
 
@@ -238,7 +252,7 @@ function LiveCallPage() {
             callId: serverSession.id,
             retellCallId: serverSession.retellCallId,
             accessToken: serverSession.accessToken,
-            transport: serverSession.transport || 'gateway',
+            transport: serverSession.transport || undefined,
             iceServers: serverSession.iceServers || [],
           }
         }
@@ -248,7 +262,7 @@ function LiveCallPage() {
         throw new Error('Valid access token not found for this call session.')
       }
 
-      const gatewayCallId = config.retellCallId || config.callId || callId
+      const activeCallId = config.retellCallId || config.callId || callId
 
       // 2. Cleanup existing client if any
       if (retellClientRef.current) {
@@ -257,11 +271,11 @@ function LiveCallPage() {
         } catch (e) {}
       }
 
-      // 3. Create fresh RetellWebClient
-      console.log('Initializing Web Client for Call ID:', gatewayCallId)
-      const client = new RetellWebClient({
-        defaultTransport: (config.transport as any) || 'gateway',
-      })
+      // 3. Create fresh RetellWebClient (defaults to LiveKit)
+      console.log('Initializing Web Client for Call ID:', activeCallId)
+      const client = new RetellWebClient(
+        config.transport ? { defaultTransport: config.transport } : undefined
+      )
       retellClientRef.current = client
 
       // 4. Attach event listeners
@@ -332,8 +346,8 @@ function LiveCallPage() {
         setConnectionStatus('ended')
         setIsDisconnecting(true)
 
-        if (!hasEndedRef.current) {
-          handleEndCall()
+        if (!hasEndedRef.current && !isUnmountingRef.current) {
+          handleEndCallRef.current()
         }
       })
 
@@ -345,12 +359,12 @@ function LiveCallPage() {
         setIsCalling(false)
       })
 
-      // 5. Connect WebRTC stream
+      // 5. Connect WebRTC stream via LiveKit
       await client.startCall({
-        callId: gatewayCallId,
         accessToken: config.accessToken,
-        transport: (config.transport as any) || 'gateway',
-        iceServers: config.iceServers,
+        ...(activeCallId ? { callId: activeCallId } : {}),
+        ...(config.transport ? { transport: config.transport } : {}),
+        ...(config.iceServers?.length ? { iceServers: config.iceServers } : {}),
       })
     } catch (err: any) {
       console.error('Fatal error starting call:', err)
@@ -363,8 +377,9 @@ function LiveCallPage() {
     }
   }
 
-  // Active call watcher: polls server for live Retell transcripts & monitors for goodbye
+  // Active call watcher: polls server for live Retell transcripts & monitors for server hangup
   useEffect(() => {
+    isUnmountingRef.current = false
     startLiveCall()
 
     const interval = setInterval(async () => {
@@ -387,7 +402,7 @@ function LiveCallPage() {
 
           // If Retell flagged call ended on server, disconnect and navigate to history
           if (session.callStatus === 'ended' && !hasEndedRef.current) {
-            handleEndCall()
+            handleEndCallRef.current()
           }
         }
       } catch (e) {
@@ -396,6 +411,7 @@ function LiveCallPage() {
     }, 1200)
 
     return () => {
+      isUnmountingRef.current = true
       clearInterval(interval)
       if (disconnectTimerRef.current) {
         clearTimeout(disconnectTimerRef.current)
@@ -404,14 +420,16 @@ function LiveCallPage() {
         try {
           recognitionRef.current.stop()
         } catch (e) {}
+        recognitionRef.current = null
       }
       if (retellClientRef.current) {
         try {
           retellClientRef.current.stopCall()
         } catch (e) {}
+        retellClientRef.current = null
       }
     }
-  }, [callId, handleEndCall])
+  }, [callId])
 
   // Intelligent goodbye detection: auto-disconnect 3 seconds after advisor says goodbye
   useEffect(() => {
@@ -425,12 +443,12 @@ function LiveCallPage() {
         if (!disconnectTimerRef.current) {
           disconnectTimerRef.current = setTimeout(() => {
             console.log('Auto-disconnecting call after advisor goodbye...')
-            handleEndCall()
+            handleEndCallRef.current()
           }, 3200)
         }
       }
     }
-  }, [messages, handleEndCall, isDisconnecting])
+  }, [messages, isDisconnecting])
 
   const handleToggleMute = () => {
     if (!retellClientRef.current) return

@@ -47,7 +47,7 @@ function IndexPage() {
           JSON.stringify({
             retellCallId: response.retellCallId,
             accessToken: response.accessToken,
-            transport: response.transport || 'gateway',
+            transport: response.transport || undefined,
             iceServers: response.iceServers || [],
           })
         )
